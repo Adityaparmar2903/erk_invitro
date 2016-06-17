@@ -8,7 +8,6 @@ from matplotlib import pyplot as plt
 import plotly.plotly as py
 import plotly.graph_objs as go
 
-
 #list the algorithms
 method_list = ['Nelder-Mead', 'Powell', 'COBYLA', 'TNC']
 
@@ -16,7 +15,6 @@ method_list = ['Nelder-Mead', 'Powell', 'COBYLA', 'TNC']
 model_list = [build_markevich_2step, build_erk_autophos_any,
 	      build_erk_autophos_uT, build_erk_autophos_phos,
 	      build_erk_activate_mkp]
-
 
 #no. of initial values sampled using Latin Hypercube Sampling
 num_ini = 1000
@@ -26,7 +24,6 @@ num_top = 10
 
 #read the data
 data = read_data()
-
 
 obj_func = np.ones((len(method_list),len(model_list),num_ini))
 obj_func[:] = np.nan
@@ -55,7 +52,6 @@ plt.ion()
 #read the pkl files and store the result
 for i in range(len(method_list)):
 	for j in range(len(model_list)):
-		#model = model_list[j]()
 		for k in range(0,1000):
 			arr_ind[i][j][k] = k
 			fname = "output_final/%s_%s_%d.pkl" % (i,j,k)
@@ -63,17 +59,16 @@ for i in range(len(method_list)):
 				print fname + ' does not exist.'
 				continue
 			results = pickle.load(open(fname, "rb"))
-			#for l in range(5):
 			l = k%5
 			result = results[l]
 			if np.isnan(result.fun) or np.isinf(result.fun):
     				continue
 			obj_func[i][j][k] = result.fun
 			func_eval[i][j][k] = result.nfev
-			#para_vec[i][j][k] = result.x
 		ave_obj_func[i][j] = np.nanmean(obj_func[i][j])
 		ave_func_eval[i][j] = np.nanmean(func_eval[i][j])
 
+"""PLOT_FIT"""
 for ii in range(len(method_list)):
 	for jj in range(len(model_list)):
 		for kk in range(num_top):
@@ -101,34 +96,24 @@ for rr in range(len(method_list)):
 		results1 = pickle.load(open(fname1, "rb"))
 		ll = tt%5
 		result1 = results1[ll]
-		if np.isnan(result.fun) or np.isinf(result.fun):
+		if np.isnan(result1.fun) or np.isinf(result1.fun):
     			continue
 		best_p = result1.x
-		model = model_list[jj]()
+		model = model_list[ss]()
 		pd = parameter_dict(model, best_p)
+		
 		plot_fit(model,data,pd)
+		manager = plt.get_current_fig_manager()
+		manager.resize(*manager.window.maxsize())
+		
 		plt.suptitle("%s-%s" % (method_list[rr], model_list[ss].__name__), fontsize=14, 					fontweight='bold')
 		plt.savefig("Plots/Plot_fit/%s-%s.png" % (method_list[rr], model_list[ss].__name__),
-				format='png', dpi=600)
+				format='png')
 		plt.savefig("Plots/Plot_fit/%s-%s.pdf" % (method_list[rr], model_list[ss].__name__),
-				format='pdf', dpi=600)
-
+				format='pdf')
 		
-
-
-
-
-
-			
-
-
-
-
-			
 		
 """OBJECTIVE FUNCTION"""
-"""	
-		
 #for each algorithm plot the results for different models
 for a in range(len(method_list)):
 	plt.figure()
@@ -142,8 +127,8 @@ for a in range(len(method_list)):
 	plt.ylabel("Objective function value")
 	#plt.ylim(-1e5,0)
 	plt.grid(True)
-	plt.savefig("Plots/%s.pdf" % (method_list[a]),format='pdf')
-	plt.savefig("Plots/%s.png" % (method_list[a]),format='png')
+	#plt.savefig("Plots/Method/%s.pdf" % (method_list[a]),format='pdf')
+	plt.savefig("Plots/Method/%s.png" % (method_list[a]),format='png')
 		
 #for each model plot the results for different algorithms
 for aa in range(len(model_list)):
@@ -158,8 +143,8 @@ for aa in range(len(model_list)):
 	plt.ylabel("Objective function value")
 	#plt.ylim(-1e5,0)
 	plt.grid(True)
-	plt.savefig("Plots/%s.pdf" % (model_list[aa].__name__),format='pdf')
-	plt.savefig("Plots/%s.png" % (model_list[aa].__name__),format='png')
+	#plt.savefig("Plots/Model/%s.pdf" % (model_list[aa].__name__),format='pdf')
+	plt.savefig("Plots/Model/%s.png" % (model_list[aa].__name__),format='png')
 
 #for each algorithm plot best results for different models  top 10
 for w in range(len(method_list)):
@@ -174,8 +159,8 @@ for w in range(len(method_list)):
 	plt.ylabel("Objective function value")
 	#plt.ylim(-1e5,0)
 	plt.grid(True)
-	plt.savefig("Plots/Top10-%s.pdf" % (method_list[w]),format='pdf')
-	plt.savefig("Plots/Top10-%s.png" % (method_list[w]),format='png')
+	#plt.savefig("Plots/Method/Top10-%s.pdf" % (method_list[w]),format='pdf')
+	plt.savefig("Plots/Method/Top10-%s.png" % (method_list[w]),format='png')
 
 
 #for each model plot best results for different algorithms top 10
@@ -191,15 +176,12 @@ for y in range(len(model_list)):
 	plt.ylabel("Objective function value")
 	#plt.ylim(-1e5,0)
 	plt.grid(True)
-	plt.savefig("Plots/Top10-%s.pdf" % (model_list[y].__name__),format='pdf')
-	plt.savefig("Plots/Top10-%s.png" % (model_list[y].__name__),format='png')
+	#plt.savefig("Plots/Model/Top10-%s.pdf" % (model_list[y].__name__),format='pdf')
+	plt.savefig("Plots/Model/Top10-%s.png" % (model_list[y].__name__),format='png')
 
-"""
+
 
 """HEATMAP"""
-
-"""
-
 #plot heatmap for objective function values
 column_labels = method_list
 row_labels = [model_list[g].__name__ for g in range(len(model_list))]
@@ -219,8 +201,9 @@ ax.xaxis.tick_top()
 ax.set_xticklabels(row_labels, minor=False)
 ax.set_yticklabels(column_labels, minor=False)
 plt.show() 
-#plt.savefig("Plots/heatmap_obj_func2.png",format='png')
-plt.savefig("Plots/heatmap_obj_func2.pdf",format='pdf')
+plt.savefig("Plots/Heatmap/heatmap_obj_func2.png",format='png')
+#plt.savefig("Plots/Heatmap/heatmap_obj_func2.pdf",format='pdf')
+
 
 #plot heatmap for no. of function evaluations
 column_labels = method_list
@@ -241,15 +224,12 @@ ax.xaxis.tick_top()
 ax.set_xticklabels(row_labels, minor=False)
 ax.set_yticklabels(column_labels, minor=False)
 plt.show()
-#plt.savefig("Plots/heatmap_func_eval2.png",format='png')
-plt.savefig("Plots/heatmap_func_eval2.pdf",format='pdf')
+plt.savefig("Plots/Heatmap/heatmap_func_eval2.png",format='png')
+#plt.savefig("Plots/Heatmap/heatmap_func_eval2.pdf",format='pdf')
 
-"""
+
 
 """MODEL PERFORMANCE"""
-
-"""
-
 plt.figure()
 plt.suptitle('Model performance', fontsize=14, fontweight='bold')
 #objective function vs function evaluations
@@ -262,8 +242,8 @@ for aaa in range(len(model_list)):
 	plt.xlabel("Objective function value (Average)")
 	plt.ylabel("Calls to the objective function (Average)")
 	plt.grid(True)
-plt.savefig("Plots/Model_Average_Performance.png",format='png')
-plt.savefig("Plots/Model_Average_Performance.pdf",format='pdf')
+plt.savefig("Plots/Performance/Model_Average_Performance.png",format='png')
+#plt.savefig("Plots/Performance/Model_Average_Performance.pdf",format='pdf')
 
 plt.figure()
 plt.suptitle('Method performance', fontsize=14, fontweight='bold')
@@ -277,9 +257,11 @@ for aaa in range(len(method_list)):
 	plt.xlabel("Objective function value (Average)")
 	plt.ylabel("Calls to the objective function (Average)")
 	plt.grid(True)
-plt.savefig("Plots/Method_Average_Performance.png",format='png')
-plt.savefig("Plots/Method_Average_Performance.pdf",format='pdf')
+plt.savefig("Plots/Performance/Method_Average_Performance.png",format='png')
+#plt.savefig("Plots/Performance/Method_Average_Performance.pdf",format='pdf')
 
+
+"""HEATMAP plotly"""
 data_heat = [go.Heatmap(z=ave_obj_func,x=[(model_list[h].__name__) for h in range(len(model_list))],y=method_list)]
 py.iplot(data_heat, filename='heatmap_obj_func')
 
@@ -287,7 +269,6 @@ data_heat = [go.Heatmap(z=ave_func_eval,x=[(model_list[h].__name__) for h in ran
 py.iplot(data_heat, filename='heatmap_func_eval')
 		
 
-"""
 	
 				
 
