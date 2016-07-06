@@ -1,7 +1,7 @@
 import sys
 import csv
 import numpy
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import pickle
 
 import emcee
@@ -10,7 +10,7 @@ from pysb import *
 
 import mapk_model
 
-folder_path = '/home/ap397/erk_invitro'
+folder_path = '/Users/aditya/erk_invitro'
 use_mpi = False
 
 class MapkExperiment(object):
@@ -181,7 +181,7 @@ def likelihood(p, model, data, plot=False):
         lh += gauss_lh(erk[1:], exp.ERK[1:], exp.ERK_std[1:])
         lh += gauss_lh(erkpt[1:], exp.ERKpT[1:], exp.ERKpT_std[1:])
         lh += gauss_lh(erkpy[1:], exp.ERKpY[1:], exp.ERKpY_std[1:])
-
+        print lh
     print lh
     if numpy.isnan(lh):
         return -numpy.inf
@@ -255,7 +255,7 @@ def build_erk_activate_mkp():
     mapk_model.erk_activate_mkp()
     mapk_model.mapk_initials()
     mapk_model.mapk_observables()
-    return model 
+    return model
 
 def run_one_model(model, model_number, data, ns, pool=None):
     # Vector of nominal parameters

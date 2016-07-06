@@ -8,7 +8,8 @@ from matplotlib import pyplot as plt
 #import plotly.plotly as py
 #import plotly.graph_objs as go
 
-method_list = ['Nelder-Mead', 'Powell', 'COBYLA', 'TNC']
+#method_list = ['Nelder-Mead', 'Powell', 'COBYLA', 'TNC']
+method_list = ['trust-ncg', 'Powell']
 model_list = [build_markevich_2step, build_erk_autophos_any,
           build_erk_autophos_uT, build_erk_autophos_phos,
           build_erk_activate_mkp]
@@ -16,8 +17,8 @@ model_list_name = ['build_markevich_2step', 'build_erk_autophos_any',
           'build_erk_autophos_uT', 'build_erk_autophos_phos',
           'build_erk_activate_mkp']
 
-num_ini = 200
-num_top = 10
+num_ini = 10
+num_top = 2
 obj_func = np.ones((len(method_list),len(model_list),num_ini))
 obj_func[:] = np.nan
 func_eval = np.ones((len(method_list),len(model_list),num_ini))
@@ -38,7 +39,7 @@ def read_pkl(list1, list2, num, data1, data2, data3, data4, data5):
     	for j in range(len(list2)):
     		for k in range(num):
     			data5[i][j][k] = k
-    			fname = "output_powell_subprob/%s_%s_%d.pkl" % (i,j,k)
+    			fname = "output_trust_ncg/%s_%s_%d.pkl" % (i,j,k)
     			if not os.path.exists(fname):
     				print fname + ' does not exist.'
     				continue
@@ -69,7 +70,7 @@ def plot_fit_imp(list1, list2):
         for s in range(len(list2)):
             best_ind = sort_run_ind(list1, list2, obj_func)
             t = best_ind[r][s]
-            fname1 = "output_powell_subprob/%s_%s_%d.pkl" % (r,s,t)
+            fname1 = "output_trust_ncg/%s_%s_%d.pkl" % (r,s,t)
             if not os.path.exists(fname1):
                 print fname1 + ' does not exist.'
                 continue
@@ -151,10 +152,8 @@ def plot_heatmap(data, **keyword):
         plt.suptitle('Objective Function Value (Average)', fontsize=14,
                       fontweight='bold')
         heatmap = ax.pcolor(data, cmap=plt.cm.Blues)
-    # put the major ticks at the middle of each cell
     ax.set_xticks(np.arange(data.shape[1])+0.5, minor=False)
     ax.set_yticks(np.arange(data.shape[0])+0.5, minor=False)
-    # want a more natural, table-like display
     ax.invert_yaxis()
     ax.xaxis.tick_top()
     ax.set_xticklabels(row_labels, minor=False)
