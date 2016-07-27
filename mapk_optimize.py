@@ -1,3 +1,4 @@
+from copy import copy
 from run_mapk_mcmc import *
 import numpy as np
 import scipy.optimize
@@ -5,44 +6,90 @@ from pyDOE import *
 from scipy.stats.distributions import norm
 import sys
 import pickle
+import numdifftools as nd
 
 model_funs = [build_markevich_2step, build_erk_autophos_any,
 	      build_erk_autophos_uT, build_erk_autophos_phos,
 	      build_erk_activate_mkp]
 
-method_names = ['Nelder-Mead', 'Powell', 'COBYLA','TNC']
+method_names  = ['Nelder-Mead', 'Powell','CG', 'BFGS', 'L-BFGS-B',
+               'TNC', 'COBYLA', 'SLSQP', 'Newton-CG', 'trust-ncg', 'dogleg', 'differential_evolution']
 
-def generate_init(model, ns, output_file, lognorm=False):
+def generate_init(model, jj, ns, output_file, lognorm=False, best_reg=True):
 	#select the parameters
-	p_to_fit = [p for p in model.parameters if p.name[0] == 'k']
-	nominal_values = np.array([q.value for q in p_to_fit])
-	log_nominal_values = np.log10(nominal_values)
-
-
-	#latin hypercube sampling for picking a starting point
-	num_ind = len(p_to_fit)*ns
-	ini_val = lhs(len(p_to_fit), samples = num_ind/len(p_to_fit))
-	means = log_nominal_values
-	stdvs = np.ones(len(p_to_fit))
-	if lognorm:
-		for ind in range(len(p_to_fit)):
-			ini_val[:,ind] = norm(loc=means[ind], scale=stdvs[ind]).ppf(ini_val[:,ind])
+	if best_reg:
+		p_to_fit = [p for p in model.parameters if p.name[0] == 'k']
+		num_ind = len(p_to_fit)*ns
+                ini_val = lhs(len(p_to_fit), samples = ns)
+		fname_new = 'stat-%d.pkl' % (jj)
+		stat = pickle.load(open(fname_new, "rb"))
+		means = stat[0]
+		stdvs = stat[1]
+		if lognorm:
+                	 for ind in range(len(p_to_fit)):
+                                ini_val[:,ind] = norm(loc=means[ind], scale=stdvs[ind]).ppf(ini_val[:,ind])
+                else:
+                        # First shift unit hypercube to be centered around origin
+                        # Then scale hypercube along each dimension by 2 stdevs
+                        # Finally shift hypercube to be centered around nominal values
+                        ini_val = means + 2 * stdvs * (ini_val - 0.5)
 	else:
-		# First shift unit hypercube to be centered around origin
-		# Then scale hypercube along each dimension by 2 stdevs
-		# Finally shift hypercube to be centered around nominal values
-		ini_val = means + 2 * stdvs * (ini_val - 0.5)
-		
+		p_to_fit = [p for p in model.parameters if p.name[0] == 'k']
+		nominal_values = np.array([q.value for q in p_to_fit])
+		log_nominal_values = np.log10(nominal_values)
+
+		#latin hypercube sampling for picking a starting point
+		num_ind = len(p_to_fit)*ns
+		ini_val = lhs(len(p_to_fit), samples = ns)
+		means = log_nominal_values
+		stdvs = np.ones(len(p_to_fit))
+		if lognorm:
+			for ind in range(len(p_to_fit)):
+				ini_val[:,ind] = norm(loc=means[ind], scale=stdvs[ind]).ppf(ini_val[:,ind])
+		else:
+			# First shift unit hypercube to be centered around origin
+			# Then scale hypercube along each dimension by 2 stdevs
+			# Finally shift hypercube to be centered around nominal values
+			ini_val = means + 2 * stdvs * (ini_val - 0.5)
+
 	np.save(output_file, ini_val)
 
 def generate_all_inits(ns):
-	for mf in model_funs:
+	for jj, mf in enumerate(model_funs):
 		model = mf()
 		fname = mf.__name__ + '_init'
-		generate_init(model, ns, fname)
+		generate_init(model, jj, ns, fname)
 
-def neg_likelihood(*args, **kwargs):
-	return -1.0*likelihood(*args, **kwargs)
+def neg_likelihood(x, *args, **kwargs):
+	# Get actual negative likelihood
+	nlh = -1.0*likelihood(x, *args, **kwargs)
+	# Penalize violated constraints
+	try:
+		nlh += numpy.sum(x[numpy.where(x > 3)] - 3) * 1000
+		nlh += numpy.sum(-8 - x[numpy.where(x < -8)]) * 1000
+	except Exception as e:
+		print "Couldn't apply constraints."
+	return nlh
+
+def jaco(x, *args, **kwargs):
+	delta = 0.01
+	fx = neg_likelihood(x, *args, **kwargs)
+	fxd = []
+	for i, xx in enumerate(x):
+		y = copy(x)
+		y[i] = xx + delta
+		fxd.append(neg_likelihood(y, *args, **kwargs))
+	#fxd = [neg_likelihood(xx + delta, *args, **kwargs) for xx in x]
+	jacob = [(xx - fx) / delta for xx in fxd]
+	#jacob = nd.Jacobian(neg_likelihood)(x, *args, **kwargs)
+	print 'J: ', jacob
+	return numpy.array(jacob)
+	#return jacob[0]
+
+def hessia(x, *args, **kwargs):
+	hessi = nd.Hessian(neg_likelihood)(x, *args, **kwargs)
+	print 'H: ', hessi
+	return hessi
 
 if __name__ == '__main__':
 	if len(sys.argv) < 5:
@@ -69,12 +116,13 @@ if __name__ == '__main__':
 
 	ini_val = np.load(model_funs[model_id].__name__ + '_init.npy')
 
-	results = []
 	for i in range(from_idx, to_idx):
 		result = scipy.optimize.minimize(neg_likelihood, ini_val[i],
-						 args=(model, data),
-					 	 method=method)
-		results.append(result)
-	fname = '%s_%s_%d_%d.pkl' % (method_id, model_id, from_idx, to_idx)
-	with open(fname, 'wb') as fh:
-		pickle.dump(results, fh)
+						jac=jaco,
+						hess=hessia,
+						args=(model, data),
+					 	method=method)
+
+		fname = '%s_%s_%d.pkl' % (method_id, model_id,i)
+		with open(fname, 'wb') as fh:
+			pickle.dump(result, fh)
